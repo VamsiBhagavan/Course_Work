@@ -1,0 +1,59 @@
+# Data Input
+```{r}
+training <- read.csv("pml-training.csv",header = TRUE, na.strings = c("NA", "#DIV/0!"))
+testing <- read.csv("pml-testing.csv",header = TRUE, na.strings = c("NA", "#DIV/0!"))
+
+```
+# Data Cleaning
+The input data has many columns with "NA" values. The following code helps in removing the columns with "NA" values greater than 90% of total number of rows. It also downselects the relevant variables for model building.
+```{r}
+# Missing Values
+missingValues = is.na(training)
+deleteColumns = which(colSums(missingValues) > 0.9 * length(training))
+trainingCleanup = training[,-deleteColumns]
+dim(trainingCleanup)
+# Removing unwarranted variables
+delete = c('X','raw_timestamp_part_1', 'raw_timestamp_part_2', 'cvtd_timestamp', 'new_window', 'num_window')
+trainingFinal <- trainingCleanup[,-which(names(trainingCleanup) %in% delete)]
+dim(trainingFinal)
+```
+# Creating subsets for training and testing the model
+The training set is further divided in two sets. 1) trainingset used for building the model and 2) testset for checking the accuracy of the model built
+```{r}
+library(ggplot2)
+library(caret)
+inTrain <- createDataPartition(y=trainingFinal$classe, p=0.75, list=FALSE)
+trainingset <- trainingFinal[inTrain,]
+testset <- trainingFinal[-inTrain,]
+```
+# Random Forest
+```{r}
+library(randomForest)
+modFit <- randomForest(classe~.,data=trainingset,importance=TRUE,ntree=100)
+```
+# Accuracy of the model
+Confusion Matrix helps out to find the accuracy of the model
+```{r}
+testsetprediction = predict(modFit, newdata = testset)
+confusionMatrix(testsetprediction,testset$classe)
+```
+~ 99.5 % is the accuracy and out of sample error is less than ~ 0.5%. This model has given excellent prediction.
+
+
+#Application on test data
+Applying the above model on test set to find out the classes.
+```{r}
+testprediction = predict(modFit,newdata=testing)
+testprediction
+
+```
+#Answers
+
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+pml_write_files(testprediction)
